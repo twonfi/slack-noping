@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "slack-noping"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
     "slack_bolt~=1.23.0",
     "Flask~=3.1.1",
@@ -25,13 +25,6 @@ keywords = ["slack"]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python :: 3.13"
-]
-
-[project.optional-dependencies]
-gui = ["PyQt5"]
-cli = [
-  "rich",
-  "click",
 ]
 
 [project.urls]
