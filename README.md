@@ -15,13 +15,12 @@ This is one use case for NoPing:
 
 Notice how `@helper` gets turned into a link. In Slack, links to user profiles don't mention the user.
 
-### Selectively ping users
-Slack mentions enclosed by `{}` are ignored by NoPing and will always be pinged.
-To prevent accidental usage, `{}` can't contain _anything_ other than the mention
-(other than a single space before `}`), so `{@IGetPinged }` gets pinged, but not `{ @IWontGetPinged}`.
+### Escaping pings
+Slack mentions followed by `\` are "escaped" by NoPing and will always be pinged.
+To prevent accidental usage, `\` can't be preceded by _anything_ other than the mention (or a single space).
 
 ```
-/np {@PleasePingMe}: Sure!
+/np @PleasePingMe \: Sure!
 ```
 > [`@your name`](): {[`@PleasePingMe`]()}: Sure!
 
