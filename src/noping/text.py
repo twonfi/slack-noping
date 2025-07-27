@@ -4,6 +4,7 @@ This module includes things like text parsing and replacement.
 """
 
 import re
+from re import Match
 
 
 def mentions_to_links(text: str, team_domain: str, client = None) -> str:
@@ -34,3 +35,18 @@ def mentions_to_links(text: str, team_domain: str, client = None) -> str:
         _repl,
         text
     )
+
+
+def user_owns_message(text: str, user: str) -> bool:
+    """Check if the user "owns" a message given its text.
+
+    :param text: Message text
+    :type text: str
+    :param user: User ID to check against
+    :type user: str
+    :return: Whether the user owns the message
+    :rtype: bool
+    """
+
+    return (re.match(r"^\*<@(?P<user_id>[^|]*)>:\*", text).group("user_id")
+            == user)
