@@ -1,5 +1,6 @@
 import os
 import re
+from time import sleep
 from json import dumps, loads
 
 from dotenv import load_dotenv
@@ -65,8 +66,15 @@ def _build_blocks(client, user_id, content, team_domain) -> list:
 def np(ack, client, say, command):
     ack()
     if command["text"].strip():
-        say(blocks=_build_blocks(client, command["user_id"], command["text"],
-            command["team_domain"]))
+        m = say(f":beachball: Incoming message from"
+                f" <@{command["user_id"]}>...")
+        sleep(.5)  # To prevent the automatic link preview
+        client.chat_update(
+            channel=m.data["channel"],
+            ts=m.data["ts"],
+            blocks=_build_blocks(client, command["user_id"], command["text"],
+                command["team_domain"])
+        )
     else:
         app.client.chat_postEphemeral(
             text="There's nothing for me to send!"
