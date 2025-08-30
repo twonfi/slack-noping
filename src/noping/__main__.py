@@ -11,8 +11,6 @@ from noping import text
 
 load_dotenv()
 
-app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
-
 
 def _build_blocks(client, user_id, content, team_domain) -> list:
     if type(content) == list:
@@ -62,6 +60,41 @@ def _build_blocks(client, user_id, content, team_domain) -> list:
     ] + [body]
 
 
+def _build_message_editor_blocks(user_id: str) -> list:
+    return [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "Mentions will be depinged unless they're"
+                        r" followed by `\`."
+            },
+        },
+        {
+            "type": "divider"
+        },
+        {
+            "type": "input",
+            "element": {
+                "type": "rich_text_input",
+                "action_id": "rich_text_input-action",
+            },
+            "label": {
+                "type": "plain_text",
+                "text": f"<@{user_id}>:",
+            },
+        },
+    ]
+
+
+def _get_message_editor_input(view):
+    return view["state"]["values"][view["blocks"][-1]["block_id"]][
+        "rich_text_input-action"]["rich_text_value"]["elements"][0]["elements"]
+
+
+app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
+
+
 @app.command("/np")
 def np(ack, client, say, command):
     ack()
@@ -83,6 +116,57 @@ def np(ack, client, say, command):
             channel=command["channel_id"],
             user=command["user_id"],
         )
+
+
+@app.message_shortcut("reply_thread")
+def reply_thread(ack, client, shortcut):
+    ack()
+    client.views_open(
+        trigger_id=shortcut["trigger_id"],
+        view={
+            "callback_id": "reply_thread",
+            "private_metadata": dumps({
+                "ts": shortcut["message"]["ts"],
+                "ch": shortcut["channel"]["id"],
+            }),
+            "type": "modal",
+            "title": {
+                "type": "plain_text",
+                "text": "Reply in thread"
+            },
+            "submit": {
+                "type": "plain_text",
+                "text": "Submit"
+            },
+            "close": {
+                "type": "plain_text",
+                "text": "Cancel"
+            },
+            "blocks": _build_message_editor_blocks(shortcut["user"]["id"]),
+        },
+    )
+
+
+@app.view("reply_thread")
+def handle_reply_thread(ack, client, view, body):
+    ack()
+    meta = loads(view["private_metadata"])
+
+    user = client.users_info(user=body["user"]["id"])["user"]
+    m = client.chat_postMessage(
+        text=f":beachball: Incoming message from <@{body["user"]["id"]}>...",
+        channel=meta["ch"],
+        thread_ts=meta["ts"],
+        username=user["profile"]["display_name"],
+        icon_url=user["profile"]["image_512"],
+    )
+    sleep(.5)  # To prevent the automatic link preview
+    client.chat_update(
+        channel=meta["ch"],
+        ts=m.data["ts"],
+        blocks=_build_blocks(client, body["user"]["id"],
+            _get_message_editor_input(view), body["team"]["domain"]),
+    )
 
 
 def _user_can_edit_message(client, msg_user_id, msg_text, user_id) -> bool:
@@ -195,30 +279,7 @@ def edit_message(ack, shortcut, client):
                     "type": "plain_text",
                     "text": "Cancel"
                 },
-                "blocks": [
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "Mentions will be depinged unless they're"
-                                    r" followed by `\`."
-                        },
-                    },
-                    {
-                        "type": "divider"
-                    },
-                    {
-                        "type": "input",
-                        "element": {
-                            "type": "rich_text_input",
-                            "action_id": "rich_text_input-action",
-                        },
-                        "label": {
-                            "type": "plain_text",
-                            "text": f"<@{shortcut["user"]["id"]}>:",
-                        },
-                    },
-                ]
+                "blocks": _build_message_editor_blocks(shortcut["user"]["id"]),
             },
         )
     else:
@@ -255,7 +316,8 @@ def handle_edit_message(ack, client, view, body):
     client.chat_update(
         channel=meta["ch"],
         ts=meta["ts"],
-        blocks=_build_blocks(client, body["user"]["id"], view["state"]["values"][view["blocks"][-1]["block_id"]]["rich_text_input-action"]["rich_text_value"]["elements"][0]["elements"], body["team"]["domain"])  # Don't show this to Pythonistas!
+        blocks=_build_blocks(client, body["user"]["id"],
+            _get_message_editor_input(view), body["team"]["domain"]),
     )
 
 
