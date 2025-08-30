@@ -53,7 +53,7 @@ def _build_blocks(client, user_id, content, team_domain) -> list:
             "elements": [
                 {
                     "type": "mrkdwn",
-                    "text": f"*<@{user_id}>:*"
+                    "text": f"*<@{user_id}>* via NoPing:"
                 }
             ]
         }
@@ -169,76 +169,119 @@ def handle_reply_thread(ack, client, view, body):
     )
 
 
+# noinspection PyUnusedLocal
 def _user_can_edit_message(client, msg_user_id, msg_text, user_id) -> bool:
-    return (msg_user_id == client.auth_test().data["user_id"]
-            and text.user_owns_message(msg_text, user_id))
+    return text.user_owns_message(msg_text, user_id)
+    # Senders aren't being checked due to impersonation
+    # return (msg_user_id == client.auth_test().data["user_id"]
+    #         and text.user_owns_message(msg_text, user_id))
 
 
+# noinspection PyUnusedLocal
 @app.message_shortcut("delete_message")
 def delete_message(ack, shortcut, client):
     ack()
-    if _user_can_edit_message(client,
-            shortcut["message"]["user"],
-            shortcut["message"]["text"],
-            shortcut["user"]["id"]):
-        client.views_open(
-            trigger_id=shortcut["trigger_id"],
-            view={
-                "callback_id": "delete_message",
-                "private_metadata": dumps({
-                    "ts": shortcut["message"]["ts"],
-                    "ch": shortcut["channel"]["id"],
-                }),
-                "type": "modal",
-                "title": {
-                    "type": "plain_text",
-                    "text": "Delete message"
-                },
-                "submit": {
-                    "type": "plain_text",
-                    "text": "Delete"
-                },
-                "close": {
-                    "type": "plain_text",
-                    "text": "Cancel"
-                },
-                "blocks": [
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "plain_text",
-                            "text": "Are you sure you want to delete this"
-                                    " message? This cannot be undone."
-                        }
-                    }
-                ]
-            }
-        )
-    else:
-        client.views_open(
-            trigger_id=shortcut["trigger_id"],
-            view={
-                "type": "modal",
-                "title": {
-                    "type": "plain_text",
-                    "text": "Can't delete message",
-                },
-                "close": {
-                    "type": "plain_text",
-                    "text": "Close",
-                },
-                "blocks": [
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "plain_text",
-                            "text": "This message wasn't sent using NoPing or"
-                                    " was sent by someone else.",
-                        },
-                    },
-                ],
+    client.views_open(
+        trigger_id=shortcut["trigger_id"],
+        view={
+            "type": "modal",
+            "title": {
+                "type": "plain_text",
+                "text": "Out of order",
             },
-        )
+            "close": {
+                "type": "plain_text",
+                "text": "Close",
+            },
+            "blocks": [
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "plain_text",
+                        "text": "NoPing used to support message deletion,"
+                                " but changing the message username and image"
+                                " prevents this."
+                                " Supporting deletion would require me to be"
+                                " trusted by the admins to get an admin token."
+                    },
+                },
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": "If you want to be able to delete your "
+                                "messages (at the cost of messages being attributed"
+                                " to NoPing),"
+                                " I can add an opt-in feature."  # TODO
+                                " Please DM <@U094NTBR1S5>"  # @twonum
+                                " so that I know people want it.",
+                    }
+                }
+            ],
+        },
+    )
+    # if _user_can_edit_message(client,
+    #         shortcut["message"]["user"],
+    #         shortcut["message"]["text"],
+    #         shortcut["user"]["id"]):
+    #     client.views_open(
+    #         trigger_id=shortcut["trigger_id"],
+    #         view={
+    #             "callback_id": "delete_message",
+    #             "private_metadata": dumps({
+    #                 "ts": shortcut["message"]["ts"],
+    #                 "ch": shortcut["channel"]["id"],
+    #             }),
+    #             "type": "modal",
+    #             "title": {
+    #                 "type": "plain_text",
+    #                 "text": "Delete message"
+    #             },
+    #             "submit": {
+    #                 "type": "plain_text",
+    #                 "text": "Delete"
+    #             },
+    #             "close": {
+    #                 "type": "plain_text",
+    #                 "text": "Cancel"
+    #             },
+    #             "blocks": [
+    #                 {
+    #                     "type": "section",
+    #                     "text": {
+    #                         "type": "plain_text",
+    #                         "text": "Are you sure you want to delete this"
+    #                                 " message? This cannot be undone."
+    #                     }
+    #                 }
+    #             ]
+    #         }
+    #     )
+    # else:
+    #     client.views_open(
+    #         trigger_id=shortcut["trigger_id"],
+    #         view={
+    #             "type": "modal",
+    #             "title": {
+    #                 "type": "plain_text",
+    #                 "text": "Can't delete message",
+    #             },
+    #             "close": {
+    #                 "type": "plain_text",
+    #                 "text": "Close",
+    #             },
+    #             "blocks": [
+    #                 {
+    #                     "type": "section",
+    #                     "text": {
+    #                         "type": "plain_text",
+    #                         "text": "This message wasn't sent using NoPing or"
+    #                                 " was sent by someone else.",
+    #                     },
+    #                 },
+    #             ],
+    #         },
+    #     )
 
 
 @app.view("delete_message")
@@ -255,7 +298,7 @@ def handle_delete_message(ack, client, view):
 def edit_message(ack, shortcut, client):
     ack()
     if _user_can_edit_message(client,
-            shortcut["message"]["user"],
+            None,  # shortcut["message"]["user"],
             shortcut["message"]["text"],
             shortcut["user"]["id"]):
         client.views_open(

@@ -48,5 +48,8 @@ def user_owns_message(text: str, user: str) -> bool:
     :rtype: bool
     """
 
-    return (re.match(r"^\*<@(?P<user_id>[^|]*)>:\*", text).group("user_id")
-            == user)
+    try:
+        return (re.match(r"^\*<@(?P<user_id>[^|]*)>\* via NoPing:",
+            text).group("user_id") == user)
+    except AttributeError:
+        return False
