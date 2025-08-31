@@ -24,10 +24,12 @@ class TestText(unittest.TestCase):
 
     def test_user_owns_message(self):
         self.assertTrue(
-            user_owns_message("*<@U098A37C0AU>:* hello", "U098A37C0AU")
+            user_owns_message("*<@U098A37C0AU>* via NoPing: hello",
+                "U098A37C0AU")
         )
         self.assertFalse(
-            user_owns_message("*<@userid2>:* hi", "userid1")
+            user_owns_message("*<@userid2>* via NoPing: hi",
+                "userid1")
         )
 
 
