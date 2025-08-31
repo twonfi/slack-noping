@@ -95,12 +95,17 @@ def _get_message_editor_input(view):
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
 
 
-@app.command("/np")
-def np(ack, client, say, command):
+@app.command("/_twonum_noping_np")
+def np(ack, client, command):
     ack()
     if command["text"].strip():
-        m = say(f":beachball: Incoming message from"
-                f" <@{command["user_id"]}>...")
+        user = client.users_info(user=command["user_id"])["user"]
+        m = client.chat_postMessage(
+            text=f":beachball: Incoming message from <@{command["user_id"]}>...",
+            channel=command["channel_id"],
+            username=user["profile"]["display_name"],
+            icon_url=user["profile"]["image_512"],
+        )
         sleep(.5)  # To prevent the automatic link preview
         client.chat_update(
             channel=m.data["channel"],
