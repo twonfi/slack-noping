@@ -95,7 +95,7 @@ def _get_message_editor_input(view):
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
 
 
-@app.command("/_twonum_noping_np")
+@app.command("/np")
 def np(ack, client, command):
     ack()
     if command["text"].strip():
