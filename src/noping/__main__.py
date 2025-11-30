@@ -92,7 +92,10 @@ def _get_message_editor_input(view):
         "rich_text_input-action"]["rich_text_value"]["elements"][0]["elements"]
 
 
-app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
+app = App(
+    token=os.environ.get("SLACK_BOT_TOKEN"),
+    signing_secret=os.environ.get("SLACK_SIGNING_SECRET"),
+)
 
 
 @app.command("/np")
