@@ -53,7 +53,7 @@ def _build_blocks(client, user_id, content, team_domain) -> list:
             "elements": [
                 {
                     "type": "mrkdwn",
-                    "text": f"*<@{user_id}>* via NoPing:"
+                    "text": f"*<@{user_id}>*:"
                 }
             ]
         }
