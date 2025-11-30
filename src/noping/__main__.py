@@ -185,6 +185,12 @@ def _user_can_edit_message(client, msg_user_id, msg_text, user_id) -> bool:
 # noinspection PyUnusedLocal
 @app.message_shortcut("delete_message")
 def delete_message(ack, shortcut, client):
+    """A stubbed function to respond to ``delete_message`` shortcuts.
+
+    This was previously implemented but is now commented out as message
+    deletion with an impersonated username is only possible with an
+    admin token, which is likely not possible for the Hack Club Slack.
+    """
     ack()
     client.views_open(
         trigger_id=shortcut["trigger_id"],
