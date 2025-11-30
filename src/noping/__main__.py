@@ -98,7 +98,7 @@ app = App(
 )
 
 
-@app.command("/_twonum_fj328hr9238")
+@app.command("/np")
 def np(ack, client, command):
     ack()
     if command["text"].strip():
