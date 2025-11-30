@@ -6,6 +6,8 @@ from json import dumps, loads
 from dotenv import load_dotenv
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
+from slack_bolt.adapter.flask import SlackRequestHandler
+from flask import Flask, request
 
 from noping import text
 
@@ -379,4 +381,15 @@ def handle_edit_message(ack, client, view, body):
 
 
 if __name__ == "__main__":
-    SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"]).start()
+    if os.environ.get("DEBUG") == "True":  # If explicitly in debug
+        SocketModeHandler(app, os.environ["SLACK_APP_TOKEN"]).start()
+    else:
+        # Use the Flask handler
+        flask_app = Flask(__name__)
+        handler = SlackRequestHandler(app)
+
+
+        @flask_app.route("/slack/events", methods=["POST"])
+        def slack_events():
+            # handler runs App's dispatch method
+            return handler.handle(request)
