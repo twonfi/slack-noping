@@ -92,6 +92,28 @@ def _get_message_editor_input(view):
         "rich_text_input-action"]["rich_text_value"]["elements"][0]["elements"]
 
 
+def _post_pre_edit_message(client, profile, user_id, **kwargs):
+    m = client.chat_postMessage(
+        text=f"*<@{user_id}>*: ...",
+        blocks=[
+            {
+                "type": "context",
+                "elements": [
+                    {
+                        "type": "mrkdwn",
+                        "text": f"*<@{user_id}>*: ..."
+                    }
+                ]
+            }
+        ],
+        username=profile["display_name"],
+        icon_url=profile["image_512"],
+        **kwargs
+    )
+    sleep(.75)  # To prevent the automatic link preview
+    return m
+
+
 app = App(
     token=os.environ.get("SLACK_BOT_TOKEN"),
     signing_secret=os.environ.get("SLACK_SIGNING_SECRET"),
@@ -103,13 +125,12 @@ def np(ack, client, command):
     ack()
     if command["text"].strip():
         user = client.users_info(user=command["user_id"])["user"]
-        m = client.chat_postMessage(
-            text=f":beachball: Incoming message from <@{command["user_id"]}>...",
+        m = _post_pre_edit_message(
+            client,
+            user["profile"],
+            command["user_id"],
             channel=command["channel_id"],
-            username=user["profile"]["display_name"],
-            icon_url=user["profile"]["image_512"],
         )
-        sleep(.5)  # To prevent the automatic link preview
         client.chat_update(
             channel=m.data["channel"],
             ts=m.data["ts"],
@@ -172,14 +193,13 @@ def handle_reply_thread(ack, client, view, body):
     meta = loads(view["private_metadata"])
 
     user = client.users_info(user=body["user"]["id"])["user"]
-    m = client.chat_postMessage(
-        text=f":beachball: Incoming message from <@{body["user"]["id"]}>...",
+    m = _post_pre_edit_message(
+        client,
+        user["profile"],
+        body["user"]["id"],
         channel=meta["ch"],
         thread_ts=meta["ts"],
-        username=user["profile"]["display_name"],
-        icon_url=user["profile"]["image_512"],
     )
-    sleep(.5)  # To prevent the automatic link preview
     client.chat_update(
         channel=meta["ch"],
         ts=m.data["ts"],
