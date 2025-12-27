@@ -11,3 +11,7 @@ handler = SlackRequestHandler(app)
 def slack_events():
     # handler runs App's dispatch method
     return handler.handle(request)
+
+
+if __name__ == "__main__":
+    flask_app.run(debug=True)
