@@ -23,8 +23,15 @@ def mentions_to_links(text: str, team_domain: str, client = None) -> str:
 
     def _repl(m):
         if client:
-            profile_name = client.users_profile_get(
-                user=m.group("user_id")).data["profile"]["display_name"]
+            profile = client.users_profile_get(
+                user=m.group("user_id"))
+            # Use either display_name or real_name; prefer display_name
+            # (some users and all bots don't have a display name)
+            profile_name = (
+                profile.data["profile"]["display_name"]
+                or profile.data["profile"]["real_name"]
+            )
+
         else:
             profile_name = m.group("username")
         return (fr"<https://{team_domain}.slack.com/team/{m.group("user_id")}"
