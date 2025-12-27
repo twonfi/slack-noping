@@ -178,11 +178,9 @@ def handle_reply_thread(ack, client, view, body):
 
 
 # noinspection PyUnusedLocal
-def _user_can_edit_message(client, msg_user_id, msg_text, user_id) -> bool:
-    return text.user_owns_message(msg_text, user_id)
-    # Senders aren't being checked due to impersonation
-    # return (msg_user_id == client.auth_test().data["user_id"]
-    #         and text.user_owns_message(msg_text, user_id))
+def _user_can_edit_message(client, msg_bot_id, msg_text, user_id) -> bool:
+    return (msg_bot_id == client.auth_test().data["bot_id"]
+            and text.user_owns_message(msg_text, user_id))
 
 
 # noinspection PyUnusedLocal
@@ -311,10 +309,11 @@ def handle_delete_message(ack, client, view):
 @app.message_shortcut("edit_message")
 def edit_message(ack, shortcut, client):
     ack()
-    if _user_can_edit_message(client,
-            None,  # shortcut["message"]["user"],
-            shortcut["message"]["text"],
-            shortcut["user"]["id"]):
+    if ("bot_id" in shortcut["message"]  # Prevents KeyError
+            and _user_can_edit_message(client,
+                shortcut["message"]["bot_id"],
+                shortcut["message"]["text"],
+                shortcut["user"]["id"])):
         client.views_open(
             trigger_id=shortcut["trigger_id"],
             view={
