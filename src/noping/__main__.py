@@ -95,7 +95,7 @@ def _get_message_editor_input(view):
 def _post_pre_edit_message(client, profile, user_id, **kwargs):
     profile_name = (
         profile["display_name"]
-        or profile["full_name"]
+        or profile["real_name"]
     )
 
     m = client.chat_postMessage(
