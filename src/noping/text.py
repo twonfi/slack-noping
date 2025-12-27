@@ -31,7 +31,7 @@ def mentions_to_links(text: str, team_domain: str, client = None) -> str:
                 fr"|@{profile_name}>")
 
     return re.sub(
-        r"<@(?P<user_id>[^|]*)\|(?P<username>.*)>(?! ?\\)",
+        r"<@(?P<user_id>[^|]*)\|(?P<username>[a-z0-9-._]{1,21})>(?! ?\\)",
         _repl,
         text
     )
