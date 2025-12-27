@@ -93,6 +93,11 @@ def _get_message_editor_input(view):
 
 
 def _post_pre_edit_message(client, profile, user_id, **kwargs):
+    profile_name = (
+        profile["display_name"]
+        or profile["full_name"]
+    )
+
     m = client.chat_postMessage(
         text=f"*<@{user_id}>*: ...",
         blocks=[
@@ -106,7 +111,7 @@ def _post_pre_edit_message(client, profile, user_id, **kwargs):
                 ]
             }
         ],
-        username=profile["display_name"],
+        username=profile_name,
         icon_url=profile["image_512"],
         **kwargs
     )
