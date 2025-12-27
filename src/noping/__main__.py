@@ -149,13 +149,40 @@ def np(ack, client, command):
 
 @app.command("/npp")
 def npp(ack, client, command):
+    """Send an ephemeral message similar to ``/np`` for previewing."""
+
+    preview_header = [
+        {
+            "type": "context",
+            "elements": [{
+                "type": "mrkdwn",
+                "text": "This is only a preview; "
+                        "*your message hasn't been sent yet!*"
+            }],
+        },
+        {
+            "type": "divider",
+        },
+    ]
+
     ack()
-    client.chat_postEphemeral(
-        text="The message preview feature is not available yet. "
-             "Coming soon\u2122",  # Coming soon[trademark symbol]
-        channel=command["channel_id"],
-        user=command["user_id"],
-    )
+    if command["text"].strip():
+        client.chat_postEphemeral(
+            blocks=preview_header + _build_blocks(
+                client,
+                command["user_id"],
+                command["text"],
+                command["team_domain"]
+            ),
+            channel=command["channel_id"],
+            user=command["user_id"],
+        )
+    else:
+        client.chat_postEphemeral(
+            text="I can't preview an empty string. Check `/np` for usage.",
+            channel=command["channel_id"],
+            user=command["user_id"],
+        )
 
 
 @app.message_shortcut("reply_thread")
