@@ -94,36 +94,81 @@ def _get_message_editor_input(view):
         "rich_text_input-action"]["rich_text_value"]["elements"][0]["elements"]
 
 
-def _post_noping_message(client, profile, user_id, blocks, **kwargs):
+def _post_noping_message(client, profile, user_id, blocks, trigger_id,
+                         **kwargs):
     profile_name = (
         profile["display_name"]
         or profile["real_name"]
     )
 
-    m = client.chat_postMessage(
-        text=f"*<@{user_id}>*: ...",
-        blocks=[
-            {
-                "type": "context",
-                "elements": [
+    try:  # To show a modal if the conversation is inaccessible
+        m = client.chat_postMessage(
+            text=f"*<@{user_id}>*: ...",
+            blocks=[
+                {
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": f"*<@{user_id}>*: ..."
+                        }
+                    ]
+                }
+            ],
+            username=profile_name,
+            icon_url=profile["image_512"],
+            **kwargs
+        )
+    except SlackApiError as e:
+        if e.response["error"] != "channel_not_found":
+            raise  # Slack returned a different error
+
+        # Slack returned "channel_not_found" meaning it's inaccessible
+        # Show the modal
+        client.views_open(
+            trigger_id=trigger_id,
+            view={
+                "type": "modal",
+                "title": {
+                    "type": "plain_text",
+                    "text": "Can't access channel",
+                },
+                "close": {
+                    "type": "plain_text",
+                    "text": "Close",
+                },
+                "blocks": [
                     {
-                        "type": "mrkdwn",
-                        "text": f"*<@{user_id}>*: ..."
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "NoPing is not in this private channel "
+                                    "and cannot send messages in it. "
+                                    "Try inviting NoPing with `/invite`.",
+                        },
+                    },
+                    { "type": "divider" },
+                    {
+                        "type": "context",
+                        "elements": [
+                            {
+                                "type": "plain_text",
+                                "text": "Preview of your message:",
+                                "emoji": False,
+                            }
+                        ]
                     }
-                ]
-            }
-        ],
-        username=profile_name,
-        icon_url=profile["image_512"],
-        **kwargs
-    )
-    sleep(.75)  # To prevent the automatic link preview
-    client.chat_update(
-        channel=m.data["channel"],
-        ts=m.data["ts"],
-        blocks=blocks,
-    )
-    return m
+                ] + blocks,
+            },
+        )
+    else:
+        sleep(.75)  # To prevent the automatic link preview
+        client.chat_update(
+            channel=m.data["channel"],
+            ts=m.data["ts"],
+            blocks=blocks,
+        )
+        return m
 
 
 app = App(
@@ -143,22 +188,57 @@ def np(ack, client, command):
             command["user_id"],
             blocks=_build_blocks(client, command["user_id"], command["text"],
                 command["team_domain"]),
+            trigger_id=command["trigger_id"],
             channel=command["channel_id"],
         )
     else:
-        client.chat_postEphemeral(
-            text="There's nothing for me to send!"
-                 " Use `/np <message>` to send a message without pings,"
-                 r" and use `@... \` in your message to escape a ping.",
-            channel=command["channel_id"],
-            user=command["user_id"],
-        )
+        try:
+            client.chat_postEphemeral(
+                text="There's nothing for me to send!"
+                     " Use `/np <message>` to send a message without pings,"
+                     r" and use `@... \` in your message to escape a ping.",
+                channel=command["channel_id"],
+                user=command["user_id"],
+            )
+        except SlackApiError as e:
+            if e.response["error"] != "channel_not_found":
+                raise
+
+            client.views_open(
+                trigger_id=command["trigger_id"],
+                view={
+                    "type": "modal",
+                    "title": {
+                        "type": "plain_text",
+                        "text": "Can't access channel",
+                    },
+                    "close": {
+                        "type": "plain_text",
+                        "text": "Close",
+                    },
+                    "blocks": [
+                        {
+                            "type": "section",
+                            "text": {
+                                "type": "mrkdwn",
+                                "text": "There's nothing for me to send in "
+                                        "this private channel. To use `/np` "
+                                        "to send directly, use `/invite` to "
+                                        "add me first. You can also use "
+                                        "`/npp` to preview a message in any "
+                                        "channel."
+                            },
+                        },
+                    ],
+                },
+            )
 
 
 @app.command("/npp")
 def npp(ack, client, command):
     """Send an ephemeral message similar to ``/np`` for previewing."""
 
+    ack()
     preview_header = [
         {
             "type": "context",
@@ -173,24 +253,87 @@ def npp(ack, client, command):
         },
     ]
 
-    ack()
     if command["text"].strip():
-        client.chat_postEphemeral(
-            blocks=preview_header + _build_blocks(
-                client,
-                command["user_id"],
-                command["text"],
-                command["team_domain"]
-            ),
-            channel=command["channel_id"],
-            user=command["user_id"],
+        blocks = _build_blocks(
+            client,
+            command["user_id"],
+            command["text"],
+            command["team_domain"]
         )
+
+        try:  # Usual method: Ephemeral message
+            client.chat_postEphemeral(
+                blocks=preview_header + blocks,
+                channel=command["channel_id"],
+                user=command["user_id"],
+            )
+        except SlackApiError as e:
+            if e.response["error"] != "channel_not_found":
+                raise
+            # Use a modal instead
+            client.views_open(
+                trigger_id=command["trigger_id"],
+                view={
+                    "type": "modal",
+                    "title": {
+                        "type": "plain_text",
+                        "text": "Message preview",
+                    },
+                    "close": {
+                        "type": "plain_text",
+                        "text": "Close",
+                    },
+                    "blocks": preview_header + [
+                        {
+                            "type": "context",
+                            "elements": [{
+                                "type": "plain_text",
+                                "text": "You're seeing this because NoPing is "
+                                        "not in this private channel."
+                            }],
+                        },
+                        {
+                            "type": "divider",
+                        },
+                    ] + blocks,
+                },
+            )
     else:
-        client.chat_postEphemeral(
-            text="I can't preview an empty string. Check `/np` for usage.",
-            channel=command["channel_id"],
-            user=command["user_id"],
-        )
+        try:
+            client.chat_postEphemeral(
+                text="I can't preview an empty string. Check `/np` for usage.",
+                channel=command["channel_id"],
+                user=command["user_id"],
+            )
+        except SlackApiError as e:
+            if e.response["error"] != "channel_not_found":
+                raise
+            client.views_open(
+                trigger_id=command["trigger_id"],
+                view={
+                    "type": "modal",
+                    "title": {
+                        "type": "plain_text",
+                        "text": "Nothing to preview",
+                    },
+                    "close": {
+                        "type": "plain_text",
+                        "text": "Close",
+                    },
+                    "blocks": [
+                        {
+                            "type": "section",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "I can't preview an empty string. See "
+                                        "my description for usage. "
+                                        "You're seeing this because NoPing is "
+                                        "not in this private channel."
+                            },
+                        },
+                    ],
+                },
+            )
 
 
 @app.message_shortcut("reply_thread")
@@ -234,6 +377,7 @@ def handle_reply_thread(ack, client, view, body):
         body["user"]["id"],
         blocks=_build_blocks(client, body["user"]["id"],
             _get_message_editor_input(view), body["team"]["domain"]),
+        trigger_id=body["trigger_id"],
         channel=meta["ch"],
         thread_ts=meta["ts"],
     )
