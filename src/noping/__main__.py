@@ -117,13 +117,24 @@ def np(ack, client, command):
                 command["team_domain"])
         )
     else:
-        app.client.chat_postEphemeral(
+        client.chat_postEphemeral(
             text="There's nothing for me to send!"
                  " Use `/np <message>` to send a message without pings,"
                  r" and use `@... \` in your message to escape a ping.",
             channel=command["channel_id"],
             user=command["user_id"],
         )
+
+
+@app.command("/npp")
+def npp(ack, client, command):
+    ack()
+    client.chat_postEphemeral(
+        text="The message preview feature is not available yet. "
+             "Coming soon\u2122",  # Coming soon[trademark symbol]
+        channel=command["channel_id"],
+        user=command["user_id"],
+    )
 
 
 @app.message_shortcut("reply_thread")
@@ -209,91 +220,27 @@ def delete_message(ack, shortcut, client):
                 {
                     "type": "section",
                     "text": {
-                        "type": "plain_text",
-                        "text": "NoPing used to support message deletion,"
-                                " but changing the message username and image"
-                                " prevents this."
-                                " Supporting deletion would require me to be"
-                                " trusted by the admins to get an admin token."
+                        "type": "mrkdwn",
+                        "text": "Due to NoPing's \"impersonation\", it cannot "
+                                "delete messages. Use `/npp` to preview "
+                                "messages and manually send them to have "
+                                "control over your messages. "
+                                "Editing is unaffected.",
                     },
                 },
                 {
                     "type": "section",
                     "text": {
                         "type": "mrkdwn",
-                        "text": "If you want to be able to delete your "
-                                "messages (at the cost of messages being attributed"
-                                " to NoPing),"
-                                " I can add an opt-in feature."  # TODO
-                                " Please DM <@U094NTBR1S5>"  # @twonum
-                                " so that I know people want it.",
-                    }
+                        "text": "(Slack prevents impersonated messages from "
+                                "being deleted by the bot who sent it. "
+                                "Allowing deletion requires a highly "
+                                "privileged and insecure admin token.)",
+                    },
                 }
             ],
         },
     )
-    # if _user_can_edit_message(client,
-    #         shortcut["message"]["user"],
-    #         shortcut["message"]["text"],
-    #         shortcut["user"]["id"]):
-    #     client.views_open(
-    #         trigger_id=shortcut["trigger_id"],
-    #         view={
-    #             "callback_id": "delete_message",
-    #             "private_metadata": dumps({
-    #                 "ts": shortcut["message"]["ts"],
-    #                 "ch": shortcut["channel"]["id"],
-    #             }),
-    #             "type": "modal",
-    #             "title": {
-    #                 "type": "plain_text",
-    #                 "text": "Delete message"
-    #             },
-    #             "submit": {
-    #                 "type": "plain_text",
-    #                 "text": "Delete"
-    #             },
-    #             "close": {
-    #                 "type": "plain_text",
-    #                 "text": "Cancel"
-    #             },
-    #             "blocks": [
-    #                 {
-    #                     "type": "section",
-    #                     "text": {
-    #                         "type": "plain_text",
-    #                         "text": "Are you sure you want to delete this"
-    #                                 " message? This cannot be undone."
-    #                     }
-    #                 }
-    #             ]
-    #         }
-    #     )
-    # else:
-    #     client.views_open(
-    #         trigger_id=shortcut["trigger_id"],
-    #         view={
-    #             "type": "modal",
-    #             "title": {
-    #                 "type": "plain_text",
-    #                 "text": "Can't delete message",
-    #             },
-    #             "close": {
-    #                 "type": "plain_text",
-    #                 "text": "Close",
-    #             },
-    #             "blocks": [
-    #                 {
-    #                     "type": "section",
-    #                     "text": {
-    #                         "type": "plain_text",
-    #                         "text": "This message wasn't sent using NoPing or"
-    #                                 " was sent by someone else.",
-    #                     },
-    #                 },
-    #             ],
-    #         },
-    #     )
 
 
 @app.view("delete_message")
