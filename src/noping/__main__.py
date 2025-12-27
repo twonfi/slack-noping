@@ -6,6 +6,7 @@ from json import dumps, loads
 from dotenv import load_dotenv
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
+from slack_sdk.errors import SlackApiError
 
 from noping import text
 
@@ -16,9 +17,9 @@ def _build_blocks(client, user_id, content, team_domain) -> list:
     if type(content) == list:
         for i, elem in enumerate(content):
             if elem["type"] == "user":
-                if i+1 < len(content) and (
-                    content[i+1]["type"] == "text"
-                    and re.match(r"^ ?\\", content[i+1]["text"])
+                if i + 1 < len(content) and (
+                        content[i + 1]["type"] == "text"
+                        and re.match(r"^ ?\\", content[i + 1]["text"])
                 ):
                     continue
                 content[i] = {
@@ -43,7 +44,8 @@ def _build_blocks(client, user_id, content, team_domain) -> list:
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": text.mentions_to_links(content, team_domain, app.client)
+                "text": text.mentions_to_links(content, team_domain,
+                    app.client)
             }
         }
 
@@ -92,7 +94,7 @@ def _get_message_editor_input(view):
         "rich_text_input-action"]["rich_text_value"]["elements"][0]["elements"]
 
 
-def _post_pre_edit_message(client, profile, user_id, **kwargs):
+def _post_noping_message(client, profile, user_id, blocks, **kwargs):
     profile_name = (
         profile["display_name"]
         or profile["real_name"]
@@ -116,6 +118,11 @@ def _post_pre_edit_message(client, profile, user_id, **kwargs):
         **kwargs
     )
     sleep(.75)  # To prevent the automatic link preview
+    client.chat_update(
+        channel=m.data["channel"],
+        ts=m.data["ts"],
+        blocks=blocks,
+    )
     return m
 
 
@@ -130,17 +137,13 @@ def np(ack, client, command):
     ack()
     if command["text"].strip():
         user = client.users_info(user=command["user_id"])["user"]
-        m = _post_pre_edit_message(
+        _post_noping_message(
             client,
             user["profile"],
             command["user_id"],
-            channel=command["channel_id"],
-        )
-        client.chat_update(
-            channel=m.data["channel"],
-            ts=m.data["ts"],
             blocks=_build_blocks(client, command["user_id"], command["text"],
-                command["team_domain"])
+                command["team_domain"]),
+            channel=command["channel_id"],
         )
     else:
         client.chat_postEphemeral(
@@ -225,18 +228,14 @@ def handle_reply_thread(ack, client, view, body):
     meta = loads(view["private_metadata"])
 
     user = client.users_info(user=body["user"]["id"])["user"]
-    m = _post_pre_edit_message(
+    _post_noping_message(
         client,
         user["profile"],
         body["user"]["id"],
-        channel=meta["ch"],
-        thread_ts=meta["ts"],
-    )
-    client.chat_update(
-        channel=meta["ch"],
-        ts=m.data["ts"],
         blocks=_build_blocks(client, body["user"]["id"],
             _get_message_editor_input(view), body["team"]["domain"]),
+        channel=meta["ch"],
+        thread_ts=meta["ts"],
     )
 
 
