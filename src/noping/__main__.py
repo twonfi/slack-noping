@@ -1,6 +1,4 @@
 import os
-import re
-from time import sleep
 from json import dumps, loads
 
 from dotenv import load_dotenv
@@ -13,29 +11,19 @@ from noping import text
 load_dotenv()
 
 
+# noinspection PyUnusedLocal
 def _build_blocks(client, user_id, content, team_domain) -> list:
     if type(content) == list:
-        for i, elem in enumerate(content):
-            if elem["type"] == "user":
-                if i + 1 < len(content) and (
-                        content[i + 1]["type"] == "text"
-                        and re.match(r"^ ?\\", content[i + 1]["text"])
-                ):
-                    continue
-                content[i] = {
-                    "type": "link",
-                    "text": "@" + client.users_profile_get(
-                        user=elem["user_id"]
-                    ).data["profile"]["display_name"],
-                    "url": f"https://{team_domain}.slack.com"
-                           f"/team/{elem["user_id"]}"
-                }
         body = {
             "type": "rich_text",
             "elements": [
                 {
                     "type": "rich_text_section",
-                    "elements": content
+                    "elements": text.block_kit_mentions_to_links(
+                        content,
+                        team_domain,
+                        client,
+                    ),
                 }
             ]
         }
@@ -104,17 +92,7 @@ def _post_noping_message(client, profile, user_id, blocks, trigger_id,
     try:  # To show a modal if the conversation is inaccessible
         m = client.chat_postMessage(
             text=f"*<@{user_id}>*: ...",
-            blocks=[
-                {
-                    "type": "context",
-                    "elements": [
-                        {
-                            "type": "mrkdwn",
-                            "text": f"*<@{user_id}>*: ..."
-                        }
-                    ]
-                }
-            ],
+            blocks=blocks,
             username=profile_name,
             icon_url=profile["image_512"],
             **kwargs
@@ -162,12 +140,6 @@ def _post_noping_message(client, profile, user_id, blocks, trigger_id,
             },
         )
     else:
-        sleep(.75)  # To prevent the automatic link preview
-        client.chat_update(
-            channel=m.data["channel"],
-            ts=m.data["ts"],
-            blocks=blocks,
-        )
         return m
 
 
@@ -375,8 +347,12 @@ def handle_reply_thread(ack, client, view, body):
         client,
         user["profile"],
         body["user"]["id"],
-        blocks=_build_blocks(client, body["user"]["id"],
-            _get_message_editor_input(view), body["team"]["domain"]),
+        blocks=_build_blocks(
+            client,
+            body["user"]["id"],
+            _get_message_editor_input(view),
+            body["team"]["domain"]
+        ),
         trigger_id=body["trigger_id"],
         channel=meta["ch"],
         thread_ts=meta["ts"],
