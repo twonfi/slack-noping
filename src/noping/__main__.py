@@ -225,52 +225,66 @@ def npp(ack, client, command):
         },
     ]
 
-    if command["text"].strip():
-        blocks = _build_blocks(
-            client,
-            command["user_id"],
-            command["text"],
-            command["team_domain"]
+    def _preview_modal(reason: str, blocks_: list) -> None:
+        client.views_open(
+            trigger_id=command["trigger_id"],
+            view={
+                "type": "modal",
+                "title": {
+                    "type": "plain_text",
+                    "text": "Message preview",
+                },
+                "close": {
+                    "type": "plain_text",
+                    "text": "Close",
+                },
+                "blocks": preview_header + [
+                    {
+                        "type": "context",
+                        "elements": [{
+                            "type": "mrkdwn",
+                            "text": reason,
+                        }],
+                    },
+                    {
+                        "type": "divider",
+                    },
+                ] + blocks_,
+            },
         )
 
-        try:  # Usual method: Ephemeral message
-            client.chat_postEphemeral(
-                blocks=preview_header + blocks,
-                channel=command["channel_id"],
-                user=command["user_id"],
+    if command["text"].strip():
+        if command["text"].strip()[:3] == "-m ":  # User forces modal
+            blocks = _build_blocks(
+                client,
+                command["user_id"],
+                command["text"].replace("-m ", "", 1),
+                command["team_domain"]
             )
-        except SlackApiError as e:
-            if e.response["error"] != "channel_not_found":
-                raise
-            # Use a modal instead
-            client.views_open(
-                trigger_id=command["trigger_id"],
-                view={
-                    "type": "modal",
-                    "title": {
-                        "type": "plain_text",
-                        "text": "Message preview",
-                    },
-                    "close": {
-                        "type": "plain_text",
-                        "text": "Close",
-                    },
-                    "blocks": preview_header + [
-                        {
-                            "type": "context",
-                            "elements": [{
-                                "type": "plain_text",
-                                "text": "You're seeing this because NoPing is "
-                                        "not in this private channel."
-                            }],
-                        },
-                        {
-                            "type": "divider",
-                        },
-                    ] + blocks,
-                },
+            _preview_modal("You're seeing this because you used `/npp -m`. "
+                           "Without `-m`, this would display as an ephemeral "
+                           "message.", blocks)
+        else:
+            blocks = _build_blocks(
+                client,
+                command["user_id"],
+                command["text"],
+                command["team_domain"]
             )
-    else:
+
+            try:  # Usual method: Ephemeral message
+                client.chat_postEphemeral(
+                    blocks=preview_header + blocks,
+                    channel=command["channel_id"],
+                    user=command["user_id"],
+                )
+            except SlackApiError as e:
+                if e.response["error"] != "channel_not_found":
+                    raise
+                # Use a modal instead
+                _preview_modal("You're seeing this because NoPing is "
+                               "not in this private channel.", blocks)
+    else:  # No text is provided
         try:
             client.chat_postEphemeral(
                 text="I can't preview an empty string. Check `/np` for usage.",
